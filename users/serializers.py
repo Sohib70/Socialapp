@@ -1,8 +1,7 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
-
-from shared.utility import chech_email_or_phone_number
-from .models import CustomUser, VIA_EMAIL, VIA_PHONE
+from shared.utility import chech_email_or_phone_number, valid_username
+from .models import CustomUser, VIA_EMAIL, VIA_PHONE,CODE_VERIFIED
 
 
 class SignUpSerializer(serializers.ModelSerializer):
@@ -24,10 +23,12 @@ class SignUpSerializer(serializers.ModelSerializer):
         if user.auth_type == VIA_EMAIL:
             code = user.create_verify_code(VIA_EMAIL)
             # send_email(user.email, code)
+            print(f"VIA_EMAIL: {code}")
         elif user.auth_type == VIA_PHONE:
             code = user.create_verify_code(VIA_PHONE)
             # send_email(user.phone_number, code)
             # send_phone_code(user.phone_number, code)
+            print(f"VIA_PHONE: {code}")
         user.save()
         return user
 
@@ -83,3 +84,44 @@ class SignUpSerializer(serializers.ModelSerializer):
         data.update(instance.token())
         return data
 
+
+class ChangeInfoUserSerializer(serializers.Serializer):
+    first_name = serializers.CharField(write_only=True,required=True)
+    last_name = serializers.CharField(write_only=True,required=True)
+    username = serializers.CharField(write_only=True,required=True)
+    password = serializers.CharField(write_only=True,required=True)
+    password_confirm = serializers.CharField(write_only=True,required=True)
+
+    def validate(self, data):
+        if data.get('password') != data.get('password_confirm'):
+            raise ValidationError({"password_confirm": "Parollar mos emas"})
+
+        if not valid_username(data.get('username')):
+            raise ValidationError("Username mukammal emas")
+        return data
+
+    def update(self,instanse,validate_data):
+        instanse.first_name = validate_data.get('first_name',instanse.first_name)
+        instanse.last_name = validate_data.get('last_name',instanse.last_name)
+        instanse.username = validate_data.get('username')
+        instanse.password = validate_data.get('password')
+        if instanse.password:
+            instanse.set_password(validate_data.get('password'))
+
+        if instanse.auth_type == CODE_VERIFIED:
+            instanse.auth_status = DONE
+
+        instanse.save()
+        return instanse
+
+class ImageUserSerializer(serializers.ModelSerializer):
+    photo = serializers.ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model = CustomUser
+        fields = ["photo"]
+
+    def update(self, instance, validated_data):
+        instance.photo = validated_data.get('photo', instance.photo)
+        instance.save()
+        return instance
