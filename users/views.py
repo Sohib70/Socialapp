@@ -113,9 +113,29 @@ class ChangeInfoUserApi(UpdateAPIView):
 class UploadUserImageView(UpdateAPIView):
     serializer_class = ImageUserSerializer
     permission_classes = [IsAuthenticated]
+    http_method_names = ["put", "patch"]
+
 
     def get_object(self):
         return self.request.user
+
+    def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
+        return Response({
+            "msg": "Ma'lumotlar yangilandi",
+            "status": status.HTTP_200_OK,
+            "data": response.data
+        })
+
+    def partial_update(self, request, *args, **kwargs):
+        response = super().partial_update(request, *args, **kwargs)
+        return Response({
+            "msg": "Ma'lumotlar yangilandi",
+            "status": status.HTTP_200_OK,
+            "data": response.data
+        })
+
+
 
 class TokenRefresh(APIView):
     permission_classes = [AllowAny]

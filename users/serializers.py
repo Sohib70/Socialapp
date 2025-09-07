@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from shared.utility import chech_email_or_phone_number, valid_username
-from .models import CustomUser, VIA_EMAIL, VIA_PHONE,CODE_VERIFIED
+from .models import CustomUser, VIA_EMAIL, VIA_PHONE,CODE_VERIFIED,DONE,PHOTO_DONE
 
 
 class SignUpSerializer(serializers.ModelSerializer):
@@ -123,5 +123,7 @@ class ImageUserSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         instance.photo = validated_data.get('photo', instance.photo)
+        if instance.auth_type == DONE:
+            instance.auth_type = PHOTO_DONE
         instance.save()
         return instance
