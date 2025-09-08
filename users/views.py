@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import SignUpSerializer,ChangeInfoUserSerializer,ImageUserSerializer
+from .serializers import SignUpSerializer, ChangeInfoUserSerializer, ImageUserSerializer, LoginSerializer,logoutSerializer,ForgotPasswordSerializer
 from rest_framework.exceptions import ValidationError
 from .models import CustomUser,NEW,CODE_VERIFIED,VIA_EMAIL,VIA_PHONE
 from rest_framework.generics import ListCreateAPIView,UpdateAPIView
@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from datetime import datetime
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework_simplejwt.views import TokenObtainPairView
 # Create your views here.
 
 class SignUpView(ListCreateAPIView):
@@ -89,51 +90,50 @@ class GetNewCodeVerify(APIView):
 
 class ChangeInfoUserApi(UpdateAPIView):
     serializer_class = ChangeInfoUserSerializer
-    http_method_names = ["put","patch"]
-
-    def get_object(self):
-        return self.request.user
-
-    def update(self,request,*args,**kwargs):
-        super(ChangeInfoUserApi,self).update(request,*args,**kwargs)
-        data = {
-            'msg':"Malumotlar yangilandi",
-            'status':status.HTTP_200_OK
-        }
-        return Response(data)
-
-    def partial_update(self,request,*args,**kwargs):
-        super(ChangeInfoUserApi,self).partial_update(request,*args,**kwargs)
-        data = {
-            'msg':"Malumotlar yangilandi",
-            'status':status.HTTP_200_OK
-        }
-        return Response(data)
-
-class UploadUserImageView(UpdateAPIView):
-    serializer_class = ImageUserSerializer
-    permission_classes = [IsAuthenticated]
     http_method_names = ["put", "patch"]
-
 
     def get_object(self):
         return self.request.user
 
     def update(self, request, *args, **kwargs):
         response = super().update(request, *args, **kwargs)
-        return Response({
-            "msg": "Ma'lumotlar yangilandi",
-            "status": status.HTTP_200_OK,
-            "data": response.data
-        })
+        user = self.get_object()
+        response.data = {
+            "msg": "Malumotlar yangilandi",
+            "auth_status": user.auth_status,
+            "status": status.HTTP_200_OK
+        }
+        return response
 
     def partial_update(self, request, *args, **kwargs):
         response = super().partial_update(request, *args, **kwargs)
-        return Response({
-            "msg": "Ma'lumotlar yangilandi",
-            "status": status.HTTP_200_OK,
-            "data": response.data
-        })
+        user = self.get_object()
+        response.data = {
+            "msg": "Malumotlar yangilandi",
+            "auth_status": user.auth_status,
+            "status": status.HTTP_200_OK
+        }
+        return response
+
+class UploadUserImageView(UpdateAPIView):
+    serializer_class = ImageUserSerializer
+    http_method_names = ["patch"]
+
+    def get_object(self):
+        return self.request.user
+
+    def partial_update(self, request, *args, **kwargs):
+        super(UploadUserImageView,self).partial_update(request, *args, **kwargs)
+        user = request.user
+
+        data = {
+            "msg": "Rasm uzgartirildi",
+            "auth_status":user.auth_status,
+            "refresh_token":user.token()["refresh_token"],
+            "access_token": user.token()["access"],
+            "status": status.HTTP_200_OK
+        }
+        return Response(data)
 
 
 
@@ -147,3 +147,28 @@ class TokenRefresh(APIView):
         except Exception as e:
             return Response({'error':str(e),'status':status.HTTP_400_BAD_REQUEST})
 
+
+class LoginApi(TokenObtainPairView):
+    serializer_class = LoginSerializer
+    permission_classes = [AllowAny]
+
+class LogoutApi(APIView):
+    def post(self,request):
+        serializer = logoutSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            token = RefreshToken(serializer.data['refresh'])
+            token.blacklist()
+            return Response({
+                'msg':"Siz dasturdan chiqdingiz",
+                'status':status.HTTP_200_OK
+            })
+        except Exception as e:
+            raise ValidationError(e)
+
+class ForgotPasswordApi(APIView):
+    permission_classes = [AllowAny]
+    def post(self,request):
+        serializer = ForgotPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response({"data":serializer.data})

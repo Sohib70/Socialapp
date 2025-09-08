@@ -88,8 +88,8 @@ class CustomUser(BaseModel, AbstractUser):
         self.hashing_password()
 
 
-EXPIRATION_PHONE = 2
-EXPIRATION_EMAIL = 5
+EXPIRATION_PHONE = 20
+EXPIRATION_EMAIL = 20
 
 
 class CodeVerified(BaseModel):
