@@ -1,6 +1,9 @@
 from django.shortcuts import render
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import SignUpSerializer, ChangeInfoUserSerializer, ImageUserSerializer, LoginSerializer,logoutSerializer,ForgotPasswordSerializer
+from django.contrib.auth import authenticate
+from shared.utility import chech_email_or_phone_number
+from .serializers import (SignUpSerializer, ChangeInfoUserSerializer, ImageUserSerializer, LoginSerializer,
+                          logoutSerializer,ForgotPasswordSerializer,ResetPasswordSerializer,UpdatePasswordSerializer)
 from rest_framework.exceptions import ValidationError
 from .models import CustomUser,NEW,CODE_VERIFIED,VIA_EMAIL,VIA_PHONE
 from rest_framework.generics import ListCreateAPIView,UpdateAPIView
@@ -171,4 +174,68 @@ class ForgotPasswordApi(APIView):
     def post(self,request):
         serializer = ForgotPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        return Response({"data":serializer.data})
+
+        phone_email = serializer.validated_data.get('phone_email')
+        user = serializer.validated_data.get('user')
+
+        if chech_email_or_phone_number(phone_email) == 'email':
+            code = user.create_verify_code(VIA_EMAIL)
+        elif chech_email_or_phone_number(phone_email) == 'phone':
+            code = user.create_verify_code(VIA_PHONE)
+        else:
+            raise ValidationError("Siz notugri email/phone kiritdingiz!")
+        data = {
+            'msg':'Kodingizni yubordik',
+            'status':status.HTTP_201_CREATED,
+            'access':user.token()['access'],
+            'refresh_token':user.token()['refresh_token']
+        }
+        print(code)
+        return Response(data)
+
+class ResetPasswordApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self,request):
+        user = request.user
+        serializer = ResetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        code = serializer.validated_data.get('code')
+        verify = user.verify_codes.filter(code = code, code_status = False,expiration_time__gte=datetime.now())
+        if not verify.exists():
+            raise ValidationError("Kodni amal qilis muddati tugagan!")
+
+        user.set_password(serializer.validated_data.get('password'))
+        user.save()
+        data = {
+            'msg':"Parollar muvaffaqiyatli uzgartirildi",
+            'status':status.HTTP_200_OK,
+
+        }
+        return Response(data)
+
+
+
+class UpdatePasswordApi(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        serializer = UpdatePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        old_pass = serializer.validated_data.get("old_pass")
+        new_pass = serializer.validated_data.get("new_pass")
+
+        if not user.check_password(old_pass):
+            raise ValidationError("Eski parol noto‘g‘ri")
+
+        user.set_password(new_pass)
+        user.save()
+
+        return Response(
+            {"msg": "Parol muvaffaqiyatli yangilandi"},
+            status=status.HTTP_200_OK
+        )
+
+

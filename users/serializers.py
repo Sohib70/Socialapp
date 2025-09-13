@@ -184,7 +184,7 @@ class logoutSerializer(serializers.Serializer):
 class ForgotPasswordSerializer(serializers.Serializer):
     phone_email = serializers.CharField(required=True,write_only=True)
 
-    def auth_validate(self,data):
+    def validate(self,data):
         user_input = data.get("phone_email")
         user = CustomUser.objects.filter(Q(email__iexact=user_input) | Q(phone_number = user_input)).first()
         if user is None:
@@ -194,10 +194,42 @@ class ForgotPasswordSerializer(serializers.Serializer):
         if user.auth_status in [NEW,CODE_VERIFIED]:
             raise ValidationError("Siz hali tuliq ruyxat utmagansiz")
 
-    def validate(self, data):
-        self.auth_validate(data)
-        super(ForgotPasswordSerializer,self).validate(data)
+        data['user'] = user
         return data
 
+
 class ResetPasswordSerializer(serializers.Serializer):
-    pass
+    code = serializers.CharField(required=True)
+    password = serializers.CharField(required=True)
+    confirm_password = serializers.CharField(required=True)
+
+    def validate(self, attrs):
+        password = attrs.get('password')
+        confirm_password = attrs.get('confirm_password')
+        if password != confirm_password:
+            raise ValidationError("Parollar mos emas")
+        return attrs
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password')
+        instance.set_password(password)
+        super(ResetPasswordSerializer,self).update(validated_data)
+
+
+class UpdatePasswordSerializer(serializers.Serializer):
+    old_pass = serializers.CharField(required=True)
+    new_pass = serializers.CharField(required=True)
+    confirm_new_pass = serializers.CharField(required=True)
+
+    def validate(self, data):
+        old_pass = data.get('old_pass')
+        new_pass = data.get('new_pass')
+        confirm_new_pass = data.get('confirm_new_pass')
+
+        if old_pass == new_pass:
+            raise ValidationError("Yangi va eski parollar bir xil bo‘lmasligi kerak")
+
+        if confirm_new_pass != new_pass:
+            raise ValidationError("Yangi parollar mos emas")
+
+        return data

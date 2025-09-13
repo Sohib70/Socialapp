@@ -1,4 +1,5 @@
-from .views import SignUpView,VerifyCodeApiView,GetNewCodeVerify,ChangeInfoUserApi,TokenRefresh,UploadUserImageView,LoginApi,LogoutApi,ForgotPasswordApi
+from .views import (SignUpView,VerifyCodeApiView,GetNewCodeVerify,ChangeInfoUserApi,TokenRefresh,UploadUserImageView,
+                    LoginApi,LogoutApi,ForgotPasswordApi,ResetPasswordApi,UpdatePasswordApi)
 from django.urls import path
 
 
@@ -11,5 +12,7 @@ urlpatterns = [
     path('image/',UploadUserImageView.as_view()),
     path("login/",LoginApi.as_view()),
     path("logout/", LogoutApi.as_view()),
-    path('forgot/',ForgotPasswordApi.as_view())
+    path('forgot/',ForgotPasswordApi.as_view()),
+    path('reset/',ResetPasswordApi.as_view()),
+    path("update/",UpdatePasswordApi.as_view())
 ]
